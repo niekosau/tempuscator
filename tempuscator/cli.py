@@ -62,6 +62,17 @@ def arguments() -> argparse.Namespace:
         help=f"Path to config file, default: {default_config}",
         default=default_config
     )
+    args.add_argument(
+        "--save-file",
+        help="Path were to save obfuscated archive",
+        required=True
+    )
+    args.add_argument(
+        "-p",
+        "--parallel",
+        help="Parallel parameter for xtrabackup",
+        default=4
+    )
     return args.parse_args()
 
 
@@ -176,7 +187,7 @@ def start_mysqld(target: str) -> (int, str):
     cli.append("--innodb-lock-wait-timeout=60")
     cli.append("--skip-innodb-buffer-pool-dump-at-shutdown")
     cli.append("--innodb-page-cleaners=8")
-    cli.append("--innodb-log-buffer-size=64M")
+    cli.append("--innodb-log-buffer-size=128M")
     cli.append("--innodb-io-capacity=3000")
     cli.append("--innodb-io-capacity-max=6000")
     cli.append("--innodb-flush-neighbors=0")
@@ -199,19 +210,21 @@ def stop_mysqld(pid: int) -> None:
     _logger.warning(f"Pid: {pid} doesn't exist")
 
 
-def mask_data(socket: str, queries: list, debug: bool) -> None:
-    m_conn = sqlalchemy.create_engine(
-        url=f"mysql+pymysql:///mysql?unix_socket={socket}",
-        pool_size=len(queries),
-        echo=debug)
+def create_db_engine(socket: str, p_size: int, debug: bool) -> sqlalchemy.Engine:
+    return sqlalchemy.create_engine(
+        url=f"mysql+pymysql://localhost/mysql?unix_socket={socket}",
+        echo=debug,
+        pool_size=p_size)
+
+
+def mask_data(engine: sqlalchemy.Engine, queries: list, debug: bool) -> None:
     threads = []
     for q in queries:
-        threads.append(threading.Thread(target=execute_query, args=(m_conn, q, )))
+        threads.append(threading.Thread(target=execute_query, args=(engine, q, )))
     for t in threads:
         t.start()
     for j in threads:
         j.join()
-    m_conn.dispose()
 
 
 def execute_query(engine: sqlalchemy.Engine, query: str) -> None:
@@ -219,6 +232,91 @@ def execute_query(engine: sqlalchemy.Engine, query: str) -> None:
         conn.execute(sqlalchemy.text(query))
         conn.commit()
     engine.dispose(close=False)
+
+
+def cleanup_upsers(engine: sqlalchemy.Engine) -> None:
+    _logger.info("Cleaning up users")
+    meta = sqlalchemy.MetaData()
+    meta.reflect(bind=engine)
+    USER = meta.tables["user"]
+    query = sqlalchemy.delete(
+        USER
+    ).filter(
+        sqlalchemy.not_(
+            USER.c.User.in_([
+                "root",
+                "mysql.sys",
+                "mysql.infoschema",
+                "mysql.session"])
+            )
+        )
+    with engine.connect() as conn:
+        conn.execute(query)
+        conn.commit()
+
+
+def change_passwords(engine: sqlalchemy.Engine) -> None:
+    meta = sqlalchemy.MetaData()
+    meta.reflect(bind=engine)
+    USER = meta.tables["user"]
+    users = [
+        "root"
+    ]
+    with engine.connect() as conn:
+        for u in users:
+            query = USER.update().where(USER.c.User == u).values(authentication_string="")
+            conn.execute(query)
+            conn.commit()
+
+
+def cleanup_files(path: str) -> None:
+    _logger.info("Removing original cert files")
+    files = [
+        "auto.cnf",
+        "backup-my.cnf",
+        "ca-key.pem",
+        "ca.pem",
+        "client-cert.pem",
+        "client-key.pem",
+        "private_key.pem",
+        "public_key.pem",
+        "server-cert.pem",
+        "server-key.pem",
+        "xtrabackup_binlog_info",
+        "xtrabackup_checkpoints",
+        "xtrabackup_info",
+        "xtrabackup_logfile",
+        "xtrabackup_slave_info",
+        "xtrabackup_tablespaces"
+    ]
+    for f in files:
+        remove_file = os.path.join(path, f)
+        _logger.debug(f"Removing: {remove_file}")
+        if os.path.isfile(remove_file):
+            os.remove(remove_file)
+
+
+def create_archive(destination: str, socket: str, debug: bool, parallel: int = 4) -> None:
+    _logger.info("Creating xbstream archive")
+    if os.path.exists(destination):
+        raise FileExistsError(f"Destination {destination} already exists, not overwriting")
+    cli = [XTRABACKUP_PATH]
+    cli.append("--backup")
+    cli.append("--stream")
+    cli.append("--compress")
+    cli.append("--parallel")
+    cli.append(str(parallel))
+    cli.append("--compress-threads")
+    cli.append(str(parallel))
+    cli.append("--socket")
+    cli.append(socket)
+    _logger.debug(f"Executing: {' '.join(cli)}")
+    with open(destination, 'wb') as archive:
+        if debug:
+            backup = subprocess.Popen(cli, stdout=archive)
+        else:
+            backup = subprocess.Popen(cli, stdout=archive, stdrrr=subprocess.DEVNULL)
+        backup.communicate()
 
 
 def main() -> None:
@@ -239,9 +337,17 @@ def main() -> None:
             xtrabackup_decompress(target=args.target_dir, debug=args.debug)
         xtrabackup_prepare(target=args.target_dir, debug=args.debug)
     queries = parse_sql(source=args.sql_file)
-    mysql_pid, mysql_socket = start_mysqld(target=args.target_dir)
-    mask_data(socket=mysql_socket, queries=queries, debug=args.debug)
-    stop_mysqld(pid=mysql_pid)
+    try:
+        cleanup_files(path=args.target_dir)
+        mysql_pid, mysql_socket = start_mysqld(target=args.target_dir)
+        sql_conn = create_db_engine(socket=mysql_socket, p_size=len(queries), debug=args.debug)
+        cleanup_upsers(engine=sql_conn)
+        change_passwords(engine=sql_conn)
+        mask_data(engine=sql_conn, queries=queries, debug=args.debug)
+        create_archive(destination=args.save_file, socket=mysql_socket, debug=args.debug)
+    finally:
+        sql_conn.dispose()
+        stop_mysqld(pid=mysql_pid)
 
 
 if __name__ == "__main__":

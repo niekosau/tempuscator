@@ -1,0 +1,59 @@
+import os
+import sqlalchemy as db
+import logging
+import threading
+from tempuscator.helpers import execute_query
+
+_logger = logging.getLogger("Tempuscator")
+
+
+class Obfuscator():
+
+    def __init__(self, source: str) -> None:
+        self.source = source
+        if not os.path.isfile(self.source):
+            raise FileNotFoundError(f"{self.source} doesn't exist or not a regular file")
+        with open(self.source, 'r') as f:
+            self.queries = f.read().split("\n")[:-1]
+
+    def change_system_user_password(self, user: str, engine: db.Engine, empty: bool = False) -> None:
+        password = ""
+        if not empty:
+            password = "somepassword"
+        meta = db.MetaData()
+        meta.reflect(bind=engine)
+        USER = meta.tables["user"]
+        with engine.connect() as conn:
+            query = USER.update().where(USER.c.User == user).values(authentication_string=password)
+            conn.execute(query)
+            conn.commit()
+
+    def cleanup_system_users(self, engine: db.Engine) -> None:
+        _logger.info("Cleaning up users")
+        meta = db.MetaData()
+        meta.reflect(bind=engine)
+        USER = meta.tables["user"]
+        query = db.delete(
+            USER
+        ).filter(
+            db.not_(
+                USER.c.User.in_([
+                    "root",
+                    "mysql.sys",
+                    "mysql.infoschema",
+                    "mysql.session"])
+                )
+            )
+        with engine.connect() as conn:
+            conn.execute(query)
+            conn.commit()
+
+    def mask(self, engine: db.Engine, Debug: bool = False) -> None:
+        _logger.info("Executing masking queries")
+        threads = []
+        for q in self.queries:
+            threads.append(threading.Thread(target=execute_query, args=(engine, q, )))
+        for t in threads:
+            t.start()
+        for j in threads:
+            j.join()

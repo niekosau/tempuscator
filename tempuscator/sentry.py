@@ -15,4 +15,3 @@ class Sentry():
             dsn=self.dsn,
             environment=self.env
         )
-        print("sentry initialized")

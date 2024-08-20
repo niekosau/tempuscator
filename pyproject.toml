@@ -6,7 +6,7 @@ description = "Script to run some sqls"
 license = "GPL-3.0-only"
 homepage = "https://github.com/niekosau"
 repository = "https://github.com/niekosau/tempuscator"
-version = "0.0.1a0"
+version = "0.0.1b0"
 
 [tool.poetry.dependencies]
 python = "~3.9"

@@ -4,6 +4,7 @@ import psutil
 import dataclasses
 import sqlalchemy as db
 import os
+from typing import Union
 
 MYSQLD_PATH = "/usr/sbin/mysqld"
 
@@ -14,15 +15,28 @@ _logger = logging.getLogger("Tempuscator")
 class MysqlData():
 
     datadir: str
+    debug: bool
+    user: Union[str, int] = dataclasses.field(default=os.getuid())
+    group: Union[str, int] = dataclasses.field(default=os.getgid())
+    mysql_user: str = dataclasses.field(default=os.environ["USER"])
+    mysql_password: str = dataclasses.field(default=None)
     socket: str = dataclasses.field(init=False)
-    pid: int = dataclasses.field(init=False)
+    pid: int = dataclasses.field(init=False, default=None)
     engine: db.Engine = dataclasses.field(init=False)
     running: bool = False
+    conn_pool_size: int = dataclasses.field(default=4)
 
     def __post_init__(self) -> None:
         self.socket = os.path.join(self.datadir, "tempuscator.sock")
-        url = f"mysql+pymysql://localhost/mysql?unix_socket={self.socket}"
-        self.engine = db.create_engine(url=url)
+        url = ["mysql+pymysql://"]
+        url.append(self.mysql_user)
+        if self.mysql_password:
+            url.append(":")
+            url.append(self.mysql_password)
+        url.append("@localhost/mysql?unix_socket=")
+        url.append(self.socket)
+        _logger.info(f"Engine: {''.join(url)}")
+        self.engine = db.create_engine(url="".join(url), echo=self.debug, pool_size=self.conn_pool_size)
 
     def __del__(self):
         """
@@ -31,14 +45,15 @@ class MysqlData():
         if self.running:
             self.stop()
 
-    def start(self) -> None:
+    def start(self, skip_grants: bool = True) -> None:
         """
         Start mysqld service
         """
         _logger.info("Starting mysqld")
         pid_path = os.path.join(self.datadir, "tempuscator.pid")
         cli = [MYSQLD_PATH]
-        cli.append("--skip-grant-tables")
+        if skip_grants:
+            cli.append("--skip-grant-tables")
         cli.append("--datadir")
         cli.append(self.datadir)
         cli.append("--skip-networking")
@@ -70,7 +85,7 @@ class MysqlData():
         cli.append("--innodb-flush-neighbors=0")
         cli.append("--innodb-redo-log-capacity=4G")
         _logger.debug(f"Executing: {' '.join(cli)}")
-        mysqld = subprocess.Popen(cli, stdout=subprocess.DEVNULL)
+        mysqld = subprocess.Popen(cli, stdout=subprocess.DEVNULL, user=self.user, group=self.group)
         mysqld.wait()
         with open(pid_path, 'r') as f:
             pid = f.read()

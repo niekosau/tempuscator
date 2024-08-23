@@ -48,7 +48,7 @@ class Obfuscator():
             conn.execute(query)
             conn.commit()
 
-    def mask(self, engine: db.Engine, Debug: bool = False) -> None:
+    def mask(self, engine: db.Engine) -> None:
         _logger.info("Executing masking queries")
         threads = []
         for q in self.queries:

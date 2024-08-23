@@ -24,7 +24,8 @@ pytest:
 
 run:
 	poetry install
-	${PYTHON} tempuscator/cli.py $(args)
+	${VENV}/bin/mysql-obfuscator $(args)
 
-build_wheel:
-	${PYTHON} setup.py bdist_wheel
+swap:
+	poetry install
+	sudo ${VENV}/bin/mysql-dir-swapper $(args)

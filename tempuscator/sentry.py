@@ -15,3 +15,16 @@ class Sentry():
             dsn=self.dsn,
             environment=self.env
         )
+
+
+def init_sentry(path: str) -> None:
+    """
+    Sentry initialization
+    """
+    import configparser
+    conf = configparser.RawConfigParser()
+    with open(path, "r") as c_file:
+        conf.read_file(c_file)
+    if not conf.has_section("Sentry"):
+        return
+    Sentry(**conf["Sentry"])

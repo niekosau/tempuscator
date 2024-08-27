@@ -22,7 +22,19 @@ class MysqlAccessDeniend(Exception):
     """
 
 
+class BackupCreateError(Exception):
+    """
+    Exception for failed backup create
+    """
+
+
 class MyCnfConfigError(Exception):
     """
     Mysql user config exception
+    """
+
+
+class MissingConfigSection(Exception):
+    """
+    Exception for missing config section in ini file
     """

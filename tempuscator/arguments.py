@@ -150,3 +150,28 @@ def swap_args() -> argparse.Namespace:
     )
     parsed = args.parse_args()
     return parsed
+
+
+def notifier_args() -> argparse.Namespace:
+    args = base_args()
+    notifier = args.add_argument_group(title="Notifier")
+    notifier.add_argument(
+        "--watch-dir",
+        help="Directory to watch, default: %(default)s",
+        type=str,
+        default="/tmp/notifier"
+    )
+    notifier.add_argument(
+        "--action",
+        help="Action to call on IN_CLOSE_WRITE",
+        required=True,
+        choices=["obfuscate", "swap"]
+    )
+    notifier.add_argument(
+        "--conf-action",
+        help="Action config file",
+        type=str,
+        required=True
+    )
+    parsed = args.parse_args()
+    return parsed

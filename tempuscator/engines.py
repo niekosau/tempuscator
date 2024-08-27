@@ -45,12 +45,16 @@ class MysqlData():
         if self.running:
             self.stop()
 
-    def start(self, skip_grants: bool = True) -> None:
+    def start(self, skip_grants: bool = True) -> str:
         """
         Start mysqld service
         """
         _logger.info("Starting mysqld")
         pid_path = os.path.join(self.datadir, "tempuscator.pid")
+        mysql_log = "/tmp/tempuscator.log"
+        if not os.path.exists(mysql_log):
+            with open(mysql_log, "w") as f:
+                pass
         cli = [MYSQLD_PATH]
         if skip_grants:
             cli.append("--skip-grant-tables")
@@ -66,7 +70,7 @@ class MysqlData():
         cli.append("--daemonize")
         cli.append("--pid-file")
         cli.append(pid_path)
-        cli.append(f"--log-error={self.datadir}/tempuscator.err")
+        cli.append(f"--log-error={mysql_log}")
         cli.append("--sql-mode=")
         cli.append("--innodb-buffer-pool-instances=8")
         cli.append("--innodb-buffer-pool-size=6G")
@@ -91,6 +95,7 @@ class MysqlData():
             pid = f.read()
         self.pid = int(pid)
         self.running = True
+        return self.socket
 
     def stop(self) -> None:
         """

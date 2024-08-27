@@ -1,20 +1,20 @@
-import os
 import sqlalchemy as db
 import logging
 import threading
 from tempuscator.helpers import execute_query
+from tempuscator.repo import Scruber
+import json
 
 _logger = logging.getLogger("Tempuscator")
 
 
 class Obfuscator():
 
-    def __init__(self, source: str) -> None:
-        self.source = source
-        if not os.path.isfile(self.source):
-            raise FileNotFoundError(f"{self.source} doesn't exist or not a regular file")
-        with open(self.source, 'r') as f:
-            self.queries = f.read().split("\n")[:-1]
+    def __init__(self, scrub: Scruber) -> None:
+        self.queries = scrub.get_queries()
+
+    def __str__(self) -> str:
+        return json.dumps(self.__dict__)
 
     def change_system_user_password(self, user: str, engine: db.Engine, empty: bool = False) -> None:
         password = ""

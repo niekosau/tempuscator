@@ -29,3 +29,7 @@ run:
 swap:
 	poetry install
 	sudo ${VENV}/bin/mysql-dir-swapper $(args)
+
+notify:
+	poetry install
+	${VENV}/bin/obfuscator-notify $(args)

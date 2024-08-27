@@ -4,9 +4,10 @@ from tempuscator.archiver import BackupProcessor
 from tempuscator.executor import Obfuscator
 from tempuscator.engines import MysqlData
 from tempuscator.logger import init_logger
-from tempuscator.arguments import obf_args, swap_args
+from tempuscator.arguments import obf_args, swap_args, notifier_args
 from tempuscator.sentry import init_sentry
 from tempuscator.swapper import SwapDirs
+from tempuscator.base import Listener
 
 
 def obfuscator() -> None:
@@ -107,3 +108,18 @@ def swapper() -> None:
     stop = time.perf_counter()
     execution_time = round((stop - start)/60, 2)
     _logger.info(f"Program took: {execution_time} minutes")
+
+
+def notifier() -> None:
+    args = notifier_args()
+    _logger = init_logger(name="Notifier", level=args.log_level)
+    _logger.info("Starting inotify")
+    _logger.debug(f"ARGS: {args}")
+    if os.path.isfile(args.config):
+        _logger.debug(f"Initializing sentry from {args.config}")
+        init_sentry(path=args.config)
+    listener = Listener(config=args.conf_action, path="/tmp/notifier", debug=args.debug)
+    listener.watch_obfuscate()
+    # watcher = IWatcher(watch_directory=args.watch_dir, action=args.action, config=args.conf_action)
+    # _logger.debug(f"IWatcher: {watcher}")
+    # watcher.watch()

@@ -6,7 +6,7 @@ description = "Script to run some sqls"
 license = "GPL-3.0-only"
 homepage = "https://github.com/niekosau"
 repository = "https://github.com/niekosau/tempuscator"
-version = "0.2.0b0"
+version = "0.3.0a0"
 
 [tool.poetry.dependencies]
 python = "~3.9"
@@ -14,6 +14,9 @@ sqlalchemy = "^2.0.32"
 psutil = "^6.0.0"
 pymysql = "^1.1.1"
 sentry-sdk = "^2.13.0"
+inotify = "^0.2.10"
+gitpython = "^3.1.43"
+paramiko = "^3.4.1"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.1.1"
@@ -24,6 +27,7 @@ pytest-cov = "^5.0.0"
 [tool.poetry.scripts]
 mysql-obfuscator = 'tempuscator.cli:obfuscator'
 mysql-dir-swapper = 'tempuscator.cli:swapper'
+obfuscator-notify = 'tempuscator.cli:notifier'
 
 [tool.pytest.ini_options]
 addopts = "--cov=tempuscator"

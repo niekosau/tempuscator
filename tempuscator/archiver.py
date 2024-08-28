@@ -11,7 +11,7 @@ from typing import Union
 XBSTREAM_PATH = "/usr/bin/xbstream"
 SCP_PATH = "/usr/bin/scp"
 XTRABACKUP_PATH = "/usr/bin/xtrabackup"
-_logger = logging.getLogger("Notifier")
+_logger = logging.getLogger(__name__)
 
 
 class BackupProcessor():
@@ -137,11 +137,14 @@ class BackupProcessor():
         _logger.info("Creating xbstream archive")
         _logger.debug(f"Force: {self.force}")
         output = None if debug else subprocess.DEVNULL
+        target_dir = "/tmp/xtrabackup_backupfiles/"
         if self.force and os.path.exists(dst):
             _logger.warning(f"Removing {dst}")
             os.remove(dst)
         cli = [XTRABACKUP_PATH]
         cli.append("--backup")
+        cli.append("--target-dir")
+        cli.append(target_dir)
         cli.append("--stream")
         cli.append("--compress")
         cli.append("--parallel")

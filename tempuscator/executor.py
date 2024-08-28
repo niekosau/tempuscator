@@ -5,7 +5,7 @@ from tempuscator.helpers import execute_query
 from tempuscator.repo import Scruber
 import json
 
-_logger = logging.getLogger("Tempuscator")
+_logger = logging.getLogger(__name__)
 
 
 class Obfuscator():

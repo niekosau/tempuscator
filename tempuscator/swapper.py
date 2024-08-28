@@ -14,7 +14,7 @@ import configparser
 PT_SHOW_GRANTS = "/usr/bin/pt-show-grants"
 SYSTEMCTL_PATH = "/usr/bin/systemctl"
 
-_logger = logging.getLogger("Swapper")
+_logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass

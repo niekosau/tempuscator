@@ -1,10 +1,12 @@
 import os
 import time
+import daemonize
+import logging
 from tempuscator.archiver import BackupProcessor
 from tempuscator.executor import Obfuscator
 from tempuscator.engines import MysqlData
 from tempuscator.logger import init_logger
-from tempuscator.arguments import obf_args, swap_args, notifier_args
+from tempuscator.arguments import obf_args, swap_args, notifier_args, daemon_abf_args
 from tempuscator.sentry import init_sentry
 from tempuscator.swapper import SwapDirs
 from tempuscator.base import Listener
@@ -16,7 +18,8 @@ def obfuscator() -> None:
     """
     args = obf_args()
     log_level = "debug" if args.debug else args.log_level
-    _logger = init_logger(name="Obfuscator", level=log_level, )
+    init_logger(name="tempuscator", level=log_level, )
+    _logger = logging.getLogger(__name__)
     _logger.debug("Starting Obfuscator")
     _logger.debug(args)
     start = time.perf_counter()
@@ -65,7 +68,8 @@ def obfuscator() -> None:
 def swapper() -> None:
     args = swap_args()
     log_level = "debug" if args.debug else args.log_level
-    _logger = init_logger(name="Swapper", level=log_level)
+    init_logger(name="tempuscator", level=log_level)
+    _logger = logging.getLogger(__name__)
     _logger.debug(f"ARGS: {args}")
     start = time.perf_counter()
     if os.path.isfile(args.config):
@@ -111,8 +115,9 @@ def swapper() -> None:
 
 
 def notifier() -> None:
-    args = notifier_args()
-    _logger = init_logger(name="Notifier", level=args.log_level)
+    args, _ = notifier_args()
+    # init_logger(name="tempuscator", level=args.log_level)
+    _logger = logging.getLogger(__name__)
     _logger.info("Starting inotify")
     _logger.debug(f"ARGS: {args}")
     if os.path.isfile(args.config):
@@ -120,6 +125,14 @@ def notifier() -> None:
         init_sentry(path=args.config)
     listener = Listener(config=args.conf_action, path="/tmp/notifier", debug=args.debug)
     listener.watch_obfuscate()
-    # watcher = IWatcher(watch_directory=args.watch_dir, action=args.action, config=args.conf_action)
-    # _logger.debug(f"IWatcher: {watcher}")
-    # watcher.watch()
+
+
+def obfuscator_daemon() -> None:
+    pid = "/tmp/obfuscator.pid"
+    init_logger(name="tempuscator", level="debug", file="/tmp/tempuscator.log")
+    _logger = logging.getLogger(__name__)
+    _logger.debug("Starting daemon!")
+    # keep_fds = [fh.stream.fileno()]
+    daemon = daemonize.Daemonize(app="obfuscator-watch", pid=pid, logger=_logger, action=notifier, foreground=True, verbose=True)
+    # daemon = daemonize.Daemonize(app="obfuscator-watch", pid=pid, action=notifier, foreground=True, verbose=False)
+    daemon.start()

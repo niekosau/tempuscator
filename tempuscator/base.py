@@ -13,7 +13,7 @@ from tempuscator.archiver import BackupProcessor
 from tempuscator.repo import Scruber
 from tempuscator.helpers import scan_ssh_key
 
-_logger = logging.getLogger("Notifier")
+_logger = logging.getLogger(__name__)
 
 CLOSE_WRITE_MASK = 0x00000008
 

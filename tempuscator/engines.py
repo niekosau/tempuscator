@@ -8,7 +8,7 @@ from typing import Union
 
 MYSQLD_PATH = "/usr/sbin/mysqld"
 
-_logger = logging.getLogger("Tempuscator")
+_logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass()

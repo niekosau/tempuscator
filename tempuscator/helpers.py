@@ -4,7 +4,7 @@ import urllib
 import logging
 import os
 
-_logger = logging.getLogger("Notifier")
+_logger = logging.getLogger(__name__)
 
 
 def execute_query(engine: db.Engine, query: str, close: bool = False) -> None:

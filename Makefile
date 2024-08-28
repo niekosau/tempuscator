@@ -33,3 +33,7 @@ swap:
 notify:
 	poetry install
 	${VENV}/bin/obfuscator-notify $(args)
+
+daemon:
+	poetry install
+	${VENV}/bin/obfuscator-daemon $(args)

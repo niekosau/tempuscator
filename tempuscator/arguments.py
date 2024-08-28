@@ -152,7 +152,7 @@ def swap_args() -> argparse.Namespace:
     return parsed
 
 
-def notifier_args() -> argparse.Namespace:
+def notifier_args() -> (argparse.Namespace, argparse.ArgumentParser):
     args = base_args()
     notifier = args.add_argument_group(title="Notifier")
     notifier.add_argument(
@@ -174,4 +174,40 @@ def notifier_args() -> argparse.Namespace:
         required=True
     )
     parsed = args.parse_args()
-    return parsed
+    return parsed, args
+
+
+def daemon_abf_args() -> argparse.Namespace:
+    # _, args = notifier_args()
+    # daemon = args.add_argument_group(title="Daemon params")
+    args = base_args()
+    notifier = args.add_argument_group(title="Notifier")
+    notifier.add_argument(
+        "--watch-dir",
+        help="Directory to watch, default: %(default)s",
+        type=str,
+        default="/tmp/notifier"
+    )
+    notifier.add_argument(
+        "--action",
+        help="Action to call on IN_CLOSE_WRITE",
+        required=True,
+        choices=["obfuscate", "swap"]
+    )
+    notifier.add_argument(
+        "--conf-action",
+        help="Action config file",
+        type=str,
+        required=True
+    )
+    args.add_argument(
+        "--foreground",
+        help="Foreground daemon, helps for debuging",
+        action="store_true"
+    )
+    args.add_argument(
+        "--pid",
+        help="Path to pid file, default: s(default)s",
+        default="/run/tempuscator/obfuscator.pid"
+    )
+    return args.parse_args()

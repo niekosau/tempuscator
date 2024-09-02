@@ -5,12 +5,13 @@ import shutil
 import pwd
 import json
 from tempuscator.exceptions import BackupFileCorrupt, DirectoryNotEmpty, BackupCreateError
-from tempuscator.helpers import scan_ssh_key
 from typing import Union
+from tempuscator.constants import (
+    XBSTREAM_PATH,
+    XTRABACKUP_PATH,
+    SCP_PATH
+)
 
-XBSTREAM_PATH = "/usr/bin/xbstream"
-SCP_PATH = "/usr/bin/scp"
-XTRABACKUP_PATH = "/usr/bin/xtrabackup"
 _logger = logging.getLogger(__name__)
 
 
@@ -202,11 +203,17 @@ class BackupProcessor():
         Upload new archive to destination server
         """
         _logger.info(f"Uploading file: {src} to {host}:{dst}")
-        scan_ssh_key(hostname=host)
         output = None if progress else subprocess.DEVNULL
         cli = [SCP_PATH]
+        cli.append("-o")
+        cli.append("UserKnownHostsFile=/dev/null")
+        cli.append("-o")
+        cli.append("StrictHostKeyChecking=no")
+        cli.append("-o")
+        cli.append("Compression=no")
         cli.append(src)
         cli.append(f"{user}@{host}:{dst}")
+        _logger.debug(f"Executing: {' '.join(cli)}")
         upload = subprocess.Popen(cli, stdout=output, user=self.user, group=self.group)
         upload.communicate()
 

@@ -34,6 +34,8 @@ notify:
 	poetry install
 	${VENV}/bin/obfuscator-notify $(args)
 
-daemon:
+restart:
 	poetry install
-	${VENV}/bin/obfuscator-daemon $(args)
+	sudo  cp etc/systemd/system/obfuscator-watcher.service /etc/systemd/system/
+	sudo systemctl daemon-reload
+	sudo systemctl restart obfuscator-watcher

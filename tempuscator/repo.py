@@ -11,9 +11,6 @@ _logger = logging.getLogger(__name__)
 class Scruber():
 
     def __init__(self, url: str, dst: str, sql_file: str) -> None:
-        _logger.debug(f"url: {url}")
-        _logger.debug(f"dst: {dst}")
-        _logger.debug(f"sql file: {sql_file}")
         self.dst = dst
         if os.path.isdir(self.dst):
             _logger.debug(f"{dst} exists, pulling changes")

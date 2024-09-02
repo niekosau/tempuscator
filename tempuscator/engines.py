@@ -5,8 +5,8 @@ import dataclasses
 import sqlalchemy as db
 import os
 from typing import Union
+from tempuscator.constants import MYSQLD_PATH
 
-MYSQLD_PATH = "/usr/sbin/mysqld"
 
 _logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class MysqlData():
             url.append(self.mysql_password)
         url.append("@localhost/mysql?unix_socket=")
         url.append(self.socket)
-        _logger.info(f"Engine: {''.join(url)}")
+        _logger.debug(f"Engine: {''.join(url)}")
         self.engine = db.create_engine(url="".join(url), echo=self.debug, pool_size=self.conn_pool_size)
 
     def __del__(self):

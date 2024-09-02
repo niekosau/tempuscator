@@ -10,9 +10,10 @@ import logging
 import datetime
 import shutil
 import configparser
-
-PT_SHOW_GRANTS = "/usr/bin/pt-show-grants"
-SYSTEMCTL_PATH = "/usr/bin/systemctl"
+from tempuscator.constants import (
+    PT_SHOW_GRANTS,
+    SYSTEMCTL_PATH
+)
 
 _logger = logging.getLogger(__name__)
 

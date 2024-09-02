@@ -11,14 +11,12 @@ from tempuscator.swapper import SwapDirs
 from tempuscator.exceptions import MissingConfigSection
 from tempuscator.archiver import BackupProcessor
 from tempuscator.repo import Scruber
-from tempuscator.helpers import scan_ssh_key
+from tempuscator.constants import CLOSE_WRITE_MASK
 
 _logger = logging.getLogger(__name__)
 
-CLOSE_WRITE_MASK = 0x00000008
 
-
-class Listener():
+class Watcher():
 
     def __init__(
             self,
@@ -47,8 +45,6 @@ class Listener():
             raise MissingConfigSection("Configuration missing section: obfuscator")
         self.conf: dict = raw_conf.__dict__.get("_sections")["obfuscator"]
         _logger.debug(f"config:\n{json.dumps(self.conf, indent=2)}")
-        url = self.conf.get("repo")
-        scan_ssh_key(url=url)
 
     def watch_obfuscate(self) -> None:
         _logger.info("Starting obfuscator watcher")

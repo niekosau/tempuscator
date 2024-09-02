@@ -1,15 +1,14 @@
 import os
 import time
-import daemonize
 import logging
 from tempuscator.archiver import BackupProcessor
 from tempuscator.executor import Obfuscator
 from tempuscator.engines import MysqlData
 from tempuscator.logger import init_logger
-from tempuscator.arguments import obf_args, swap_args, notifier_args, daemon_abf_args
+from tempuscator.arguments import obf_args, swap_args, notifier_args
 from tempuscator.sentry import init_sentry
 from tempuscator.swapper import SwapDirs
-from tempuscator.base import Listener
+from tempuscator.base import Watcher
 
 
 def obfuscator() -> None:
@@ -114,25 +113,17 @@ def swapper() -> None:
     _logger.info(f"Program took: {execution_time} minutes")
 
 
-def notifier() -> None:
-    args, _ = notifier_args()
-    # init_logger(name="tempuscator", level=args.log_level)
+def mysql_obf_watcher() -> None:
+    args = notifier_args()
+    if args.log_file:
+        init_logger(name="tempuscator", level=args.log_level, file=args.log_file)
+    else:
+        init_logger(name="tempuscator", level=args.log_level)
     _logger = logging.getLogger(__name__)
     _logger.info("Starting inotify")
     _logger.debug(f"ARGS: {args}")
     if os.path.isfile(args.config):
         _logger.debug(f"Initializing sentry from {args.config}")
         init_sentry(path=args.config)
-    listener = Listener(config=args.conf_action, path="/tmp/notifier", debug=args.debug)
+    listener = Watcher(config=args.conf_action, path=args.watch_dir, debug=args.debug)
     listener.watch_obfuscate()
-
-
-def obfuscator_daemon() -> None:
-    pid = "/tmp/obfuscator.pid"
-    init_logger(name="tempuscator", level="debug", file="/tmp/tempuscator.log")
-    _logger = logging.getLogger(__name__)
-    _logger.debug("Starting daemon!")
-    # keep_fds = [fh.stream.fileno()]
-    daemon = daemonize.Daemonize(app="obfuscator-watch", pid=pid, logger=_logger, action=notifier, foreground=True, verbose=True)
-    # daemon = daemonize.Daemonize(app="obfuscator-watch", pid=pid, action=notifier, foreground=True, verbose=False)
-    daemon.start()

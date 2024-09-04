@@ -39,3 +39,7 @@ restart:
 	sudo  cp etc/systemd/system/obfuscator-watcher.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl restart obfuscator-watcher
+
+watch:
+	poetry install
+	sudo ${VENV}/bin/mysql-swap-watcher $(args)

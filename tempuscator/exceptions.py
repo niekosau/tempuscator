@@ -38,3 +38,9 @@ class MissingConfigSection(Exception):
     """
     Exception for missing config section in ini file
     """
+
+
+class NotARoot(Exception):
+    """
+    Exception if running user not a root
+    """

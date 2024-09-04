@@ -168,7 +168,7 @@ def notifier_args() -> argparse.Namespace:
     notifier.add_argument(
         "--action",
         help="Action to call on IN_CLOSE_WRITE",
-        required=True,
+        required=False,
         choices=["obfuscate", "swap"]
     )
     notifier.add_argument(

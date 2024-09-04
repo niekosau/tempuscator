@@ -5,10 +5,11 @@ import json
 import inotify.adapters
 import uuid
 import time
+import threading
 from tempuscator.executor import Obfuscator
 from tempuscator.engines import MysqlData
 from tempuscator.swapper import SwapDirs
-from tempuscator.exceptions import MissingConfigSection
+from tempuscator.exceptions import MissingConfigSection, NotARoot
 from tempuscator.archiver import BackupProcessor
 from tempuscator.repo import Scruber
 from tempuscator.constants import CLOSE_WRITE_MASK
@@ -58,6 +59,29 @@ class Watcher():
             _logger.info(f"Received: {backup_file}")
             self.__run_obfuscate(backup=backup_file)
 
+    def watch(self, action: str) -> None:
+        """
+        Method to watch for uploaded files
+
+        :param str action: Swap or obfuscate (obfuscate not implemented)
+
+        :returns: None
+        """
+        actions = ["swap", "obfuscate"]
+        if action not in actions:
+            raise ValueError(f"action emust be one from: {' '.join(actions)}")
+        _logger.info("Starting directory watcher")
+        _logger.debug(f"Watching: {self.path}")
+        watch = inotify.adapters.InotifyTree(path=self.path, mask=CLOSE_WRITE_MASK)
+        for e in watch.event_gen(yield_nones=False):
+            (_, event, path, file) = e
+            _logger.debug(f"Received event: {e}")
+            if "IN_CLOSE_WRITE" not in event:
+                continue
+            file = os.path.join(path, file)
+            _logger.info(f"Received: {file}")
+            self.__run_swap(backup=file)
+
     def _random_str(self) -> str:
         return uuid.uuid4().hex[:8]
 
@@ -96,8 +120,67 @@ class Watcher():
             _logger.info(f"Execution time: {execution_time}")
         if "scp_host" in self.conf.keys():
             _logger.info("Uploading obfuscated backup")
-            host = self.conf.get("scp_host")
-            _logger.debug(f"Uploading to {host}")
+            hosts = self.conf.get("scp_host").split(",")
+            _logger.debug(f"Uploading to {hosts}")
             user = self.conf.get("ssh_user") if "ssh_user" in self.conf.keys() else os.environ["USER"]
             dst_path = self.conf.get('scp_path') if "scp_path" in self.conf.keys() else save_path
-            processor.uploader(host=host, user=user, src=save_path, dst=dst_path)
+            u_thread = []
+            for host in hosts:
+                u_thread.append(threading.Thread(target=self.__run_upload, args=(processor, host, user, save_path, dst_path, )))
+            for t in u_thread:
+                t.start()
+            for j in u_thread:
+                j.join()
+
+    def __run_upload(self, uploader: BackupProcessor, host: str, user: str, src: str, dst: str) -> None:
+        """
+        Threaded method for parallel uploader
+
+        :param uploader: BackupProcessor class
+        :param host: ip addres or hostname where to scp
+        :param user: user name for ssh
+        :param src: source file path
+        :param dst: destination path were to put file
+
+        :return: None
+        """
+        _logger.debug(f"Starting uploading to {host}")
+        uploader.uploader(host=host, user=user, src=src, dst=dst)
+
+    def __swap_checks(self) -> None:
+        """
+        Checks for swapping
+
+        :raises NotARoot: user that runs this part of code must be a root
+        """
+        _logger.debug("Running prechecks for swapper")
+        if os.getuid() != 0:
+            raise NotARoot("User must be root")
+
+    def __run_swap(self, backup) -> None:
+        """
+        Swap mysql directories
+
+        :param str backup: Path to backup file
+
+        :returns: None
+        """
+        self.__swap_checks()
+        start = time.perf_counter()
+        work_dir = os.path.join("/tmp/", self._random_str())
+        swapper = SwapDirs(src_dir=work_dir)
+        processor = BackupProcessor(source=backup, target=work_dir, user="mysql", group="mysql")
+        mysql = MysqlData(datadir=work_dir, debug=self.debug, user="mysql", group="mysql")
+        try:
+            processor.extract(debug=self.debug)
+            processor.prepare(debug=self.debug)
+            mysql.start(skip_grants=False)
+            swapper.update_users(engine=mysql.engine)
+            mysql.stop()
+            swapper.stop_mysqld()
+            swapper.swap_dirs()
+        finally:
+            swapper.start_mysqld()
+        stop = time.perf_counter()
+        execution_time = round((stop - start)/60, 2)
+        _logger.info(f"Program took: {execution_time} minutes")

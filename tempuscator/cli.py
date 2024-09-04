@@ -127,3 +127,22 @@ def mysql_obf_watcher() -> None:
         init_sentry(path=args.config)
     listener = Watcher(config=args.conf_action, path=args.watch_dir, debug=args.debug)
     listener.watch_obfuscate()
+
+
+def mysql_swap_watch() -> None:
+    """
+    Cli entry point for mysql directory wacher
+    """
+    args = notifier_args()
+    if args.log_file:
+        init_logger(name="tempuscator", level=args.log_level, file=args.log_file)
+    else:
+        init_logger(name="tempuscator", level=args.log_level)
+    _logger = logging.getLogger(__name__)
+    _logger.info("Starting inotify")
+    _logger.debug(f"ARGS: {args}")
+    if os.path.isfile(args.config):
+        _logger.debug(f"Initializing sentry from {args.config}")
+        init_sentry(path=args.config)
+    listener = Watcher(config=args.conf_action, path=args.watch_dir, debug=args.debug)
+    listener.watch(action="swap")

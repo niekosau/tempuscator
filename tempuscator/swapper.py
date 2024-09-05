@@ -46,7 +46,7 @@ class SwapDirs():
                 self.user = u_conf.get("client", "user")
                 _logger.debug(f"Mysql user: {self.user}")
             if u_conf.has_option("client", "password"):
-                self.password = u_conf.get("client", "password")
+                self.password = u_conf.get("client", "password") if u_conf.has_option("client", "password") else None
         cli = [PT_SHOW_GRANTS]
         cli.append("--database")
         cli.append("mysql")
@@ -57,6 +57,7 @@ class SwapDirs():
         if self.user:
             cli.append("--user")
             cli.append(self.user)
+        if self.password:
             cli.append("--password")
             cli.append(self.password)
         exec = subprocess.Popen(cli, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

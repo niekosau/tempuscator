@@ -96,7 +96,6 @@ def swapper() -> None:
             group=args.group)
     _logger.debug(f"Mysql data: {updated_data}")
     backup.extract(debug=args.debug)
-    backup.decompress(debug=args.debug)
     backup.prepare(debug=args.debug)
     try:
         updated_data.start(skip_grants=False)
